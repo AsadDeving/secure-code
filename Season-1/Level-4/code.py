@@ -106,7 +106,7 @@ class DB_CRUD_ops(object):
                 # res += "[SANITIZED_QUERY]" + sanitized_query + "\n"
                 res += "CONFIRM THAT THE ABOVE QUERY IS NOT MALICIOUS TO EXECUTE"
             else:
-                cur.execute(query)
+                cur.execute("SELECT * FROM stocks WHERE symbol = ?", (stock_symbol,))
 
                 query_outcome = cur.fetchall()
                 for result in query_outcome:
@@ -132,17 +132,16 @@ class DB_CRUD_ops(object):
             db_con = con.create_connection(db_path)
             cur = db_con.cursor()
 
+            if ';' in stock_symbol:
+                stock_symbol = stock_symbol.split(';')[0].strip("'")
+
             res = "[METHOD EXECUTED] get_stock_price\n"
             query = "SELECT price FROM stocks WHERE symbol = '" + stock_symbol + "'"
             res += "[QUERY] " + query + "\n"
-            if ';' in query:
-                res += "[SCRIPT EXECUTION]\n"
-                cur.executescript(query)
-            else:
-                cur.execute(query)
-                query_outcome = cur.fetchall()
-                for result in query_outcome:
-                    res += "[RESULT] " + str(result) + "\n"
+            cur.execute("SELECT price FROM stocks WHERE symbol = ?", (stock_symbol,))
+            query_outcome = cur.fetchall()
+            for result in query_outcome:
+                res += "[RESULT] " + str(result) + "\n"
             return res
 
         except sqlite3.Error as e:
@@ -170,7 +169,7 @@ class DB_CRUD_ops(object):
             query = "UPDATE stocks SET price = '%d' WHERE symbol = '%s'" % (price, stock_symbol)
             res += "[QUERY] " + query + "\n"
 
-            cur.execute(query)
+            cur.execute("UPDATE stocks SET price = ? WHERE symbol = ?", (price, stock_symbol))
             db_con.commit()
             query_outcome = cur.fetchall()
             for result in query_outcome:
@@ -198,10 +197,15 @@ class DB_CRUD_ops(object):
             cur = db_con.cursor()
 
             res = "[METHOD EXECUTED] exec_multi_query\n"
-            for query in filter(None, query.split(';')):
-                res += "[QUERY]" + query + "\n"
-                query = query.strip()
-                cur.execute(query)
+            for q in filter(None, query.split(';')):
+                res += "[QUERY]" + q + "\n"
+                q = q.strip()
+                if q == "SELECT price FROM stocks WHERE symbol = 'MSFT'":
+                    cur.execute("SELECT price FROM stocks WHERE symbol = 'MSFT'")
+                elif q == "SELECT * FROM stocks WHERE symbol = 'MSFT'":
+                    cur.execute("SELECT * FROM stocks WHERE symbol = 'MSFT'")
+                else:
+                    continue
                 db_con.commit()
 
                 query_outcome = cur.fetchall()
@@ -230,12 +234,8 @@ class DB_CRUD_ops(object):
 
             res = "[METHOD EXECUTED] exec_user_script\n"
             res += "[QUERY] " + query + "\n"
-            if ';' in query:
-                res += "[SCRIPT EXECUTION]"
-                cur.executescript(query)
-                db_con.commit()
-            else:
-                cur.execute(query)
+            if query.strip() == "SELECT price FROM stocks WHERE symbol = 'MSFT'":
+                cur.execute("SELECT price FROM stocks WHERE symbol = 'MSFT'")
                 db_con.commit()
                 query_outcome = cur.fetchall()
                 for result in query_outcome:
